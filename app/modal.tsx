@@ -1,20 +1,23 @@
 import { useEmergencyStore } from '@/store/emergencyStore';
+import { usePanicAlert } from '@/hooks/usePanicAlert';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  StatusBar
+  StatusBar,
+  ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function EmergencyModal() {
   const router = useRouter();
   const { status, resetAlert } = useEmergencyStore();
+  const { sendAlert, cancelAlert } = usePanicAlert();
   const [seconds, setSeconds] = useState(5);
 
   // Animación para el anillo de pulso
@@ -31,7 +34,13 @@ export default function EmergencyModal() {
       pulse.start();
       
       const interval = setInterval(() => {
-        setSeconds(s => (s > 0 ? s - 1 : 0));
+        setSeconds(s => {
+          if (s <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return s - 1;
+        });
       }, 1000);
 
       return () => {
@@ -41,16 +50,29 @@ export default function EmergencyModal() {
     }
   }, [status, scaleAnim]);
 
-  // Si la alerta se cancela o termina, volvemos atrás
+  // Disparar alerta cuando el contador llega a 0
   useEffect(() => {
+    if (status === 'counting' && seconds === 0) {
+      sendAlert();
+    }
+  }, [seconds, status, sendAlert]);
+
+  // Si la alerta termina con éxito, cerramos tras un momento
+  useEffect(() => {
+    if (status === 'success') {
+      const timer = setTimeout(() => {
+        resetAlert(); // vuelve a idle y cierra el modal
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+    // Si vuelve a idle (por ejemplo al cancelar), cerramos el modal
     if (status === 'idle') {
       router.back();
     }
-  }, [status, router]);
+  }, [status, router, resetAlert]);
 
   const handleCancel = () => {
-    resetAlert();
-    router.back();
+    cancelAlert(); // Llama a resetAlert, lo que cambia status a 'idle' y cierra
   };
 
   return (
@@ -65,12 +87,34 @@ export default function EmergencyModal() {
           <Text style={styles.subText}>Enviando tu ubicación en tiempo real...</Text>
         </View>
 
-        {/* Círculo de Cuenta Regresiva */}
+        {/* Círculo de Cuenta Regresiva o Estado */}
         <View style={styles.timerContainer}>
           <Animated.View style={[styles.pulseRing, { transform: [{ scale: scaleAnim }] }]} />
           <View style={styles.timerCircle}>
-            <Text style={styles.timerNumber}>{seconds}</Text>
-            <Text style={styles.timerLabel}>SEGUNDOS</Text>
+            {status === 'counting' && (
+              <>
+                <Text style={styles.timerNumber}>{seconds}</Text>
+                <Text style={styles.timerLabel}>SEGUNDOS</Text>
+              </>
+            )}
+            {status === 'sending' && (
+              <>
+                <ActivityIndicator size="large" color="#D32F2F" />
+                <Text style={[styles.timerLabel, { marginTop: 15 }]}>ENVIANDO...</Text>
+              </>
+            )}
+            {status === 'success' && (
+              <>
+                <MaterialIcons name="check-circle" size={80} color="#4CAF50" />
+                <Text style={[styles.timerLabel, { marginTop: 5, color: '#4CAF50' }]}>ENVIADO</Text>
+              </>
+            )}
+            {status === 'error' && (
+              <>
+                <MaterialIcons name="error" size={80} color="#D32F2F" />
+                <Text style={[styles.timerLabel, { marginTop: 5, color: '#D32F2F' }]}>ERROR</Text>
+              </>
+            )}
           </View>
         </View>
 
@@ -86,10 +130,16 @@ export default function EmergencyModal() {
           </View>
         </View>
 
-        {/* Botón de Cancelación Crítica */}
-        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-          <Text style={styles.cancelBtnText}>CANCELAR ALERTA</Text>
-        </TouchableOpacity>
+        {/* Botón de Cancelación Crítica o Cierre */}
+        {(status === 'counting' || status === 'error') ? (
+          <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
+            <Text style={styles.cancelBtnText}>
+              {status === 'error' ? 'CERRAR' : 'CANCELAR ALERTA'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ height: 60 }} />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -184,6 +234,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 10,
+    height: 60,
+    justifyContent: 'center',
   },
   cancelBtnText: {
     color: '#D32F2F',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,44 +7,39 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useEmergencyStore } from '@/store/emergencyStore';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useContactStore } from '@/store/contactStore';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-
-const PALETTE = {
-  primaryBlue: '#1F6F8B',
-  darkText: '#263238',
-  mediumGray: '#90A4AE',
-  lightGray: '#ECEFF1',
-  error: '#D32F2F',
-  success: '#2E7D32',
-};
+import { useRouter } from 'expo-router';
+import { COLORS, FONT_SIZES, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '@/constants/theme';
 
 function ContactCard({ contact, onDelete }) {
   return (
     <View style={styles.card}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{contact.name.charAt(0).toUpperCase()}</Text>
-      </View>
       <View style={styles.cardInfo}>
         <Text style={styles.cardName}>{contact.name}</Text>
-        <Text style={styles.cardPhone}>{contact.phone}</Text>
+        <Text style={styles.cardPhone}>{contact.phone_number}</Text>
       </View>
-      <TouchableOpacity onPress={() => onDelete(contact.id)}>
-        <MaterialIcons name="delete-outline" size={24} color={PALETTE.mediumGray} />
+      <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(contact.id)}>
+        <MaterialIcons name="delete-outline" size={20} color={COLORS.error} />
       </TouchableOpacity>
     </View>
   );
 }
 
 export default function ContactsScreen() {
-  const { contacts, addContact, removeContact } = useEmergencyStore();
+  const router = useRouter();
+  const { contacts, addContact, removeContact, fetchContacts } = useContactStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
+
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
 
   const handleAdd = () => {
     if (newName && newPhone) {
@@ -58,34 +53,37 @@ export default function ContactsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Contactos</Text>
-        <Text style={styles.headerSubtitle}>Tus enlaces de emergencia</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.primaryBlue} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>CONTACTOS</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <FlatList
         data={contacts}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <ContactCard contact={item} onDelete={removeContact} />
         )}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <MaterialIcons name="person-add-alt" size={64} color={PALETTE.mediumGray} />
+            <MaterialIcons name="person-add-alt" size={64} color={COLORS.mediumGray} />
             <Text style={styles.emptyText}>No tienes contactos agregados</Text>
           </View>
         }
       />
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setModalVisible(true)}
-      >
-        <MaterialIcons name="add" size={32} color="#FFF" />
-      </TouchableOpacity>
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.addBtnText}>+ AGREGAR CONTACTO</Text>
+        </TouchableOpacity>
+      </View>
 
-      {/* Add Contact Modal */}
       <Modal animationType="slide" transparent={true} visible={modalVisible}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -95,7 +93,7 @@ export default function ContactsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nuevo Contacto</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color={PALETTE.darkText} />
+                <MaterialIcons name="close" size={24} color={COLORS.darkText} />
               </TouchableOpacity>
             </View>
 
@@ -106,6 +104,7 @@ export default function ContactsScreen() {
                 value={newName}
                 onChangeText={setNewName}
                 placeholder="Ejem: Juan Pérez"
+                placeholderTextColor={COLORS.mediumGray}
               />
             </View>
 
@@ -116,6 +115,7 @@ export default function ContactsScreen() {
                 value={newPhone}
                 onChangeText={setNewPhone}
                 placeholder="+54 9 11 ..."
+                placeholderTextColor={COLORS.mediumGray}
                 keyboardType="phone-pad"
               />
             </View>
@@ -133,75 +133,96 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.lightBackground,
   },
   header: {
-    padding: 24,
-    backgroundColor: '#FFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: COLORS.lightBackground,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: PALETTE.darkText,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: PALETTE.mediumGray,
-    marginTop: 4,
+    fontSize: FONT_SIZES.xl,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.darkText,
+    letterSpacing: 1,
   },
   list: {
-    padding: 20,
+    padding: SPACING.lg,
     paddingBottom: 100,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: PALETTE.lightGray,
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: PALETTE.primaryBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#FFF',
-    fontSize: 20,
-    fontWeight: '700',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardInfo: {
     flex: 1,
-    marginLeft: 16,
   },
   cardName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: PALETTE.darkText,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.darkText,
   },
   cardPhone: {
-    fontSize: 14,
-    color: PALETTE.mediumGray,
-    marginTop: 2,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.mediumGray,
+    marginTop: 4,
   },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 30,
-    backgroundColor: PALETTE.primaryBlue,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  deleteBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: '#F5B5B5',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: SPACING.lg,
+    backgroundColor: COLORS.lightBackground,
+  },
+  addBtn: {
+    backgroundColor: COLORS.primaryBlue,
+    height: 64,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtnText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.md,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    letterSpacing: 1,
   },
   modalOverlay: {
     flex: 1,
@@ -209,7 +230,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.white,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 30,
@@ -222,39 +243,39 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: PALETTE.darkText,
+    fontSize: FONT_SIZES.xxl,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.darkText,
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: PALETTE.mediumGray,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    color: COLORS.mediumGray,
     marginBottom: 8,
     textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: PALETTE.lightGray,
-    borderRadius: 14,
-    padding: 16,
-    fontSize: 16,
-    color: PALETTE.darkText,
-    fontWeight: '600',
+    backgroundColor: COLORS.lightBackground,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.darkText,
+    fontWeight: TYPOGRAPHY.fontWeightSemiBold,
   },
   submitBtn: {
-    backgroundColor: PALETTE.primaryBlue,
-    borderRadius: 16,
+    backgroundColor: COLORS.primaryBlue,
+    borderRadius: BORDER_RADIUS.md,
     padding: 20,
     alignItems: 'center',
     marginTop: 20,
   },
   submitBtnText: {
-    color: '#FFF',
-    fontWeight: '900',
-    fontSize: 14,
+    color: COLORS.white,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    fontSize: FONT_SIZES.md,
     letterSpacing: 1,
   },
   empty: {
@@ -263,9 +284,9 @@ const styles = StyleSheet.create({
     marginTop: 100,
   },
   emptyText: {
-    color: PALETTE.mediumGray,
+    color: COLORS.mediumGray,
     marginTop: 16,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: FONT_SIZES.md,
+    fontWeight: TYPOGRAPHY.fontWeightSemiBold,
   },
 });

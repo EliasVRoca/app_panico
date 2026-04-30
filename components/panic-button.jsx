@@ -2,12 +2,12 @@ import * as Haptics from 'expo-haptics';
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useEmergencyStore } from '@/store/emergencyStore';
+import { COLORS, FONT_SIZES, TYPOGRAPHY } from '@/constants/theme';
 
 export const PanicButton = ({ onActivated }) => {
   const status = useEmergencyStore((state) => state.status);
   const startCountdown = useEmergencyStore((state) => state.startCountdown);
 
-  // Pulse animation for idle state
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseLoop = useRef(null);
 
@@ -16,13 +16,13 @@ export const PanicButton = ({ onActivated }) => {
       pulseLoop.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.08,
-            duration: 900,
+            toValue: 1.05,
+            duration: 1200,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 900,
+            duration: 1200,
             useNativeDriver: true,
           }),
         ]),
@@ -39,35 +39,34 @@ export const PanicButton = ({ onActivated }) => {
   }, [status, pulseAnim]);
 
   const handleLongPress = () => {
-    // Fase 2: Integración de Haptics
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     startCountdown();
-    onActivated?.();
+    if (onActivated) {
+        onActivated();
+    }
   };
 
   const isCounting = status === 'counting';
   const isSending = status === 'sending';
 
-  // Fase 2: Colores dinámicos basados en la nueva paleta solicitada
   const buttonColor = isCounting
-    ? '#FFA726' // Secondary Orange
+    ? COLORS.secondaryOrange
     : isSending
-      ? '#2EA3D0' // Secondary Blue
+      ? COLORS.secondaryBlue
       : status === 'success'
-        ? '#2E7D32' // Success Green
+        ? COLORS.success
         : status === 'error'
-          ? '#D32F2F' // Error Red
-          : '#F57C00'; // Primary Orange (Idle)
+          ? COLORS.error
+          : COLORS.primaryOrange;
 
   return (
     <View style={styles.container}>
-      {/* Efecto de brillo/shimmer detrás del botón */}
       <Animated.View 
         style={[
           styles.shimmer, 
           { 
             transform: [{ scale: pulseAnim }], 
-            opacity: status === 'idle' ? 0.3 : 0 
+            opacity: status === 'idle' ? 0.4 : 0 
           }
         ]} 
       />
@@ -83,18 +82,7 @@ export const PanicButton = ({ onActivated }) => {
             pressed && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.sosText}>S.O.S</Text>
-          <Text style={styles.hintText}>
-            {isCounting
-              ? 'ACTIVANDO...'
-              : isSending
-                ? 'ENVIANDO...'
-                : status === 'success'
-                  ? 'ENVIADO'
-                  : status === 'error'
-                    ? 'ERROR'
-                    : 'MANTÉN PRESIONADO'}
-          </Text>
+          <Text style={styles.sosText}>SOS</Text>
         </Pressable>
       </Animated.View>
     </View>
@@ -108,42 +96,32 @@ const styles = StyleSheet.create({
   },
   shimmer: {
     position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: '#FFA726',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: COLORS.secondaryOrange,
   },
   button: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 20,
-    shadowColor: '#F57C00',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    borderWidth: 8,
-    borderColor: 'rgba(255,255,255,0.2)',
+    elevation: 15,
+    shadowColor: COLORS.primaryOrange,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    borderWidth: 6,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   buttonPressed: {
     opacity: 0.9,
-    // Eliminamos el transform scale aquí para no chocar con el Animated.View
   },
   sosText: {
-    color: '#FFFFFF',
-    fontSize: 48,
-    fontWeight: '900',
-    letterSpacing: 4,
-  },
-  hintText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 10,
-    marginTop: 8,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textAlign: 'center',
-    paddingHorizontal: 20,
+    color: COLORS.white,
+    fontSize: FONT_SIZES.mega,
+    fontWeight: TYPOGRAPHY.fontWeightBold,
+    letterSpacing: 2,
   },
 });
